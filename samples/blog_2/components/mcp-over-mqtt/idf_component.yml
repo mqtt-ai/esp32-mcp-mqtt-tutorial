@@ -1,0 +1,3 @@
+version: "0.0.1"
+description: "MCP over MQTT 5.0 component for ESP-IDF"
+url: "https://mqtt.ai"

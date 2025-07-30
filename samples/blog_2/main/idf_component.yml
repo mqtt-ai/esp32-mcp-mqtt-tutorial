@@ -1,0 +1,4 @@
+dependencies:
+  mcp-over-mqtt:
+    path: components/mcp-over-mqtt
+    version: "0.0.1"
