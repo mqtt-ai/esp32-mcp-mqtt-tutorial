@@ -13,6 +13,7 @@ A modern web-based chat application powered by LlamaIndex and DashScope (Qwen) m
 - 🔒 Secure environment variable management with validation
 - 🛠️ Based on LlamaIndex framework with Flask web server
 - 🎵 TTS (Text-to-Speech) output optimization with formatting constraints
+- 📊 Comprehensive logging system for monitoring user interactions and AI responses
 
 ## Install Dependencies
 
@@ -62,6 +63,8 @@ MAX_TOKENS=2048
 MAX_HISTORY_LENGTH=20
 ASSISTANT_NAME=AI Assistant
 DEBUG=false
+ENABLE_CONVERSATION_LOGGING=true
+LOG_LEVEL=INFO
 ```
 
 **Method 2: Set system environment variables**
@@ -166,6 +169,27 @@ The system includes five distinct personality types:
 - **socratic_teacher** (苏格拉底式导师型) - Question-based, thoughtful, reflective teaching
 
 Roles and personalities can be mixed and matched via the web interface or `/api/custom-pairing` endpoint.
+
+## Logging System
+
+The application includes comprehensive logging capabilities for monitoring and debugging:
+
+### Configuration
+- `ENABLE_CONVERSATION_LOGGING=true` - Enable/disable conversation logging
+- `LOG_LEVEL=INFO` - Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+### Features
+- **Real-time Console Logging**: All user inputs and AI responses are logged to console
+- **Dual Logger System**: Separate loggers for web server events and chatbot conversations
+- **Structured Output**: Timestamps, log levels, and categorized message types
+- **Privacy Consideration**: All user conversations are logged - ensure compliance with privacy requirements
+
+### Example Output
+```
+2024-01-15 10:30:25 - chatbot - INFO - USER INPUT: 你好，我想了解旅游攻略
+2024-01-15 10:30:27 - chatbot - INFO - LLM RESPONSE: [语调：热情兴奋] [语速：正常] 你好！我是旅游规划助手...
+2024-01-15 10:30:45 - flask_app - INFO - ROLE SWITCH REQUEST: Switching to role 'entertainer'
+```
 
 ## Troubleshooting
 

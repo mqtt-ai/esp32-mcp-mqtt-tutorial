@@ -5,6 +5,7 @@ Provides web interfaces for chat and configuration management
 
 import os
 import json
+import logging
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
 from chatbot import ChatBot
@@ -17,14 +18,28 @@ CORS(app)  # Enable CORS for API endpoints
 # Global chatbot instance
 chatbot = None
 
+# Setup Flask app logger
+app_logger = logging.getLogger("flask_app")
+app_logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(
+    logging.Formatter(
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+)
+app_logger.addHandler(handler)
+
 
 def initialize_chatbot():
     """Initialize chatbot with error handling"""
     global chatbot
     try:
         chatbot = ChatBot()
+        app_logger.info("Chatbot initialized successfully")
         return True
     except Exception as e:
+        app_logger.error(f"Failed to initialize chatbot: {e}")
         print(f"Failed to initialize chatbot: {e}")
         return False
 
@@ -35,6 +50,9 @@ def ensure_chatbot():
     global chatbot
     if chatbot is None:
         if not initialize_chatbot():
+            app_logger.warning(
+                "Chatbot initialization failed. Some features may not work."
+            )
             print("Warning: Chatbot initialization failed. Some features may not work.")
 
 
@@ -105,27 +123,48 @@ def config_page():
 def api_chat_stream():
     """API endpoint for streaming chat messages"""
     if chatbot is None:
+        app_logger.error("API request failed: Chatbot not initialized")
         return jsonify({"error": "Chatbot not initialized"}), 500
 
     data = request.get_json()
     if not data or "message" not in data:
+        app_logger.warning("API request failed: Message is required")
         return jsonify({"error": "Message is required"}), 400
 
     message = data["message"].strip()
     if not message:
+        app_logger.warning("API request failed: Message cannot be empty")
         return jsonify({"error": "Message cannot be empty"}), 400
 
     if len(message) > 2000:
+        app_logger.warning(
+            f"API request failed: Message too long ({len(message)} characters)"
+        )
         return jsonify(
             {"error": "Message too long, please limit to 2000 characters"}
         ), 400
 
+    # Log incoming request
+    client_ip = request.remote_addr
+    app_logger.info(
+        f"CHAT REQUEST from {client_ip}: Starting stream for message length {len(message)}"
+    )
+
+    # If chatbot has conversation logging enabled, the actual message content is logged in chatbot.py
+
     def generate():
         try:
+            chunk_count = 0
             for chunk in chatbot.stream_chat(message):
+                chunk_count += 1
                 yield f"data: {json.dumps({'chunk': chunk, 'done': False})}\n\n"
+
+            app_logger.info(
+                f"CHAT RESPONSE: Stream completed with {chunk_count} chunks"
+            )
             yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
         except Exception as e:
+            app_logger.error(f"CHAT STREAM ERROR: {str(e)}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     resp = Response(generate(), mimetype="text/event-stream")
@@ -153,15 +192,20 @@ def api_get_roles():
 def api_switch_role(role_name):
     """API endpoint to switch chatbot role"""
     if chatbot is None:
+        app_logger.error("API request failed: Chatbot not initialized")
         return jsonify({"error": "Chatbot not initialized"}), 500
 
     try:
+        app_logger.info(f"ROLE SWITCH REQUEST: Switching to role '{role_name}'")
         result = chatbot.change_role(role_name)
         if result["success"]:
+            app_logger.info(f"ROLE SWITCH SUCCESS: {result['message']}")
             return jsonify(result)
         else:
+            app_logger.warning(f"ROLE SWITCH FAILED: {result['message']}")
             return jsonify(result), 400
     except Exception as e:
+        app_logger.error(f"ROLE SWITCH ERROR: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -182,12 +226,16 @@ def api_get_history():
 def api_clear_history():
     """API endpoint to clear conversation history"""
     if chatbot is None:
+        app_logger.error("API request failed: Chatbot not initialized")
         return jsonify({"error": "Chatbot not initialized"}), 500
 
     try:
+        app_logger.info("HISTORY CLEAR REQUEST: Clearing conversation history")
         chatbot.reset_conversation()
+        app_logger.info("HISTORY CLEAR SUCCESS: Conversation history cleared")
         return jsonify({"success": True, "message": "Conversation history cleared"})
     except Exception as e:
+        app_logger.error(f"HISTORY CLEAR ERROR: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -242,22 +290,28 @@ def api_get_personalities():
 def api_apply_custom_pairing():
     """API endpoint to apply custom role-personality pairing"""
     if chatbot is None:
+        app_logger.error("API request failed: Chatbot not initialized")
         return jsonify({"error": "Chatbot not initialized"}), 500
 
     data = request.get_json()
     if not data or "role" not in data or "personality_id" not in data:
+        app_logger.warning("API request failed: Role and personality_id are required")
         return jsonify({"error": "Role and personality_id are required"}), 400
 
     role_name = data["role"]
     personality_id = data["personality_id"]
 
     try:
+        app_logger.info(f"CUSTOM PAIRING REQUEST: {role_name} with {personality_id}")
         result = chatbot.apply_custom_pairing(role_name, personality_id)
         if result["success"]:
+            app_logger.info(f"CUSTOM PAIRING SUCCESS: {result['message']}")
             return jsonify(result)
         else:
+            app_logger.warning(f"CUSTOM PAIRING FAILED: {result['message']}")
             return jsonify(result), 400
     except Exception as e:
+        app_logger.error(f"CUSTOM PAIRING ERROR: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -298,10 +352,20 @@ def main():
         print(f"🔗 Chat interface: http://localhost:{args.port}/chat")
         print(f"⚙️ Configuration: http://localhost:{args.port}/config")
         print(f"🏠 Home page: http://localhost:{args.port}/")
+        app_logger.info(f"Web server starting on {args.host}:{args.port}")
+
+        # Log configuration status
+        if chatbot and chatbot.config.enable_conversation_logging:
+            app_logger.info(
+                f"Conversation logging enabled at level: {chatbot.config.log_level}"
+            )
+        else:
+            app_logger.info("Conversation logging disabled")
     else:
         print("❌ Warning: Chatbot initialization failed")
         print("💡 Please check your .env file and API key configuration")
         print("🌐 Starting web server anyway...")
+        app_logger.warning("Starting web server without functional chatbot")
 
     # Run the app
     app.run(debug=args.debug, host=args.host, port=args.port, threaded=True)

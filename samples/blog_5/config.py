@@ -4,6 +4,7 @@ Centralized management of all chatbot configuration parameters
 """
 
 import os
+import logging
 from typing import Optional
 from dataclasses import dataclass
 from dotenv import load_dotenv
@@ -28,6 +29,10 @@ class ChatConfig:
     # System configuration
     assistant_name: str = "AI Assistant"
     enable_debug: bool = False
+
+    # Logging configuration
+    enable_conversation_logging: bool = True
+    log_level: str = "INFO"
 
     def __post_init__(self):
         """Post-initialization validation"""
@@ -57,6 +62,11 @@ class ChatConfig:
         if not self.assistant_name.strip():
             raise ValueError("Assistant name cannot be empty")
 
+        # Validate log level
+        valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if self.log_level.upper() not in valid_log_levels:
+            raise ValueError(f"Log level must be one of: {', '.join(valid_log_levels)}")
+
     @classmethod
     def from_env(cls, env_file: str = ".env") -> "ChatConfig":
         """Load configuration from environment variables"""
@@ -72,6 +82,10 @@ class ChatConfig:
             max_history_length=cls._get_env_int("MAX_HISTORY_LENGTH", 20),
             assistant_name=os.getenv("ASSISTANT_NAME", "AI Assistant"),
             enable_debug=cls._get_env_bool("DEBUG", False),
+            enable_conversation_logging=cls._get_env_bool(
+                "ENABLE_CONVERSATION_LOGGING", True
+            ),
+            log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
         )
 
     @staticmethod
@@ -131,6 +145,8 @@ class ChatConfig:
             "max_history_length": self.max_history_length,
             "assistant_name": self.assistant_name,
             "enable_debug": self.enable_debug,
+            "enable_conversation_logging": self.enable_conversation_logging,
+            "log_level": self.log_level,
         }
 
     def __str__(self) -> str:
@@ -143,5 +159,35 @@ class ChatConfig:
         config_info.append(f"Assistant Name: {self.assistant_name}")
         if self.enable_debug:
             config_info.append("Debug Mode: Enabled")
+        if self.enable_conversation_logging:
+            config_info.append(f"Logging: {self.log_level}")
 
         return " | ".join(config_info)
+
+
+def setup_logging(config: ChatConfig) -> logging.Logger:
+    """Setup logging configuration based on config"""
+    logger = logging.getLogger("chatbot")
+
+    # Clear existing handlers
+    logger.handlers.clear()
+
+    # Set log level
+    log_level = getattr(logging, config.log_level.upper())
+    logger.setLevel(log_level)
+
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+
+    # Create formatter
+    formatter = logging.Formatter(
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    console_handler.setFormatter(formatter)
+
+    # Add handler to logger
+    logger.addHandler(console_handler)
+
+    return logger

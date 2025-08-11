@@ -4,11 +4,12 @@ Chatbot implementation based on LlamaIndex and Qwen model
 """
 
 import os
+import logging
 from typing import Optional
 from llama_index.core import Settings
 from llama_index.llms.dashscope import DashScope
 from llama_index.core.llms import ChatMessage, MessageRole
-from config import ChatConfig
+from config import ChatConfig, setup_logging
 from roles import (
     get_preset_roles,
     get_role_description,
@@ -64,6 +65,13 @@ class ChatBot:
 
         # Set simple debug mode
         self.debug_mode = getattr(self.config, "enable_debug", False)
+
+        # Setup logging
+        self.logger = (
+            setup_logging(self.config)
+            if self.config.enable_conversation_logging
+            else None
+        )
 
         # Use default role and add TTS constraints
         default_role_prompt = get_role_prompt("default")
@@ -124,6 +132,10 @@ class ChatBot:
             str: Streaming response chunks
         """
         try:
+            # Log user input
+            if self.logger:
+                self.logger.info(f"USER INPUT: {message}")
+
             # Build structured conversation messages
             messages = self._build_chat_messages(message)
 
@@ -134,6 +146,10 @@ class ChatBot:
                 if chunk_text:
                     response_text += chunk_text
                     yield chunk_text
+
+            # Log complete LLM response
+            if self.logger:
+                self.logger.info(f"LLM RESPONSE: {response_text}")
 
             # Record conversation history after streaming is complete
             user_msg = ChatMessage(
@@ -146,8 +162,17 @@ class ChatBot:
             self.conversation_history.append(user_msg)
             self.conversation_history.append(assistant_msg)
 
+            # Log conversation history length
+            if self.logger:
+                self.logger.debug(
+                    f"Conversation history length: {len(self.conversation_history)}"
+                )
+
         except Exception as e:
-            yield f"Error occurred: {str(e)}"
+            error_msg = f"Error occurred: {str(e)}"
+            if self.logger:
+                self.logger.error(f"CHAT ERROR: {error_msg}")
+            yield error_msg
 
     def _build_chat_messages(self, new_message: str) -> list:
         """Build structured chat message array"""
@@ -208,6 +233,8 @@ class ChatBot:
 
     def reset_conversation(self):
         """Reset conversation history"""
+        if self.logger:
+            self.logger.info("CONVERSATION RESET: Clearing conversation history")
         self.conversation_history = []
 
     def get_role_info(self) -> dict:
@@ -258,6 +285,13 @@ class ChatBot:
             role_info = get_role_info(role_name)
             if role_info:
                 self.current_personality_id = role_info["personality_id"]
+
+            # Log role change
+            if self.logger:
+                self.logger.info(
+                    f"ROLE CHANGE: Switched to role '{role_name}' ({self._get_role_description()})"
+                )
+
             self.reset_conversation()  # Reset conversation history when switching roles
             return {
                 "success": True,
@@ -349,10 +383,16 @@ class ChatBot:
             self.system_prompt = self._build_complete_prompt(role_prompt)
             self.current_role = role_name
             self.current_personality_id = personality_id
-            self.reset_conversation()  # Reset conversation history when applying custom pairing
 
+            # Log custom pairing
             role_desc = get_role_description(role_name)
             personality_name = personality.name
+            if self.logger:
+                self.logger.info(
+                    f"CUSTOM PAIRING: Applied {role_desc} with {personality_name} personality"
+                )
+
+            self.reset_conversation()  # Reset conversation history when applying custom pairing
 
             return {
                 "success": True,
