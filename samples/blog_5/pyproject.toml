@@ -1,0 +1,38 @@
+[project]
+name = "blog-5"
+version = "0.1.0"
+description = "ChatBot based on LlamaIndex and AI models with Web interface"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "llama-index>=0.9.0",
+    "llama-index-llms-dashscope>=0.1.0",
+    "python-dotenv>=1.0.0",
+    "dashscope>=1.0.0",
+    "flask>=2.3.0",
+    "flask-cors>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.12.7",
+]
+
+[project.scripts]
+chatbot-web = "app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "*.py",
+    "templates",
+    "static"
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.7",
+]

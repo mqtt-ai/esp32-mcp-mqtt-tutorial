@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - ChatBot{% endblock %}
+
+{% block head %}
+<style>
+    .role-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+    
+    .role-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .role-card.active {
+        border-color: #007bff;
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    
+    .config-section {
+        border-left: 4px solid #007bff;
+        padding-left: 20px;
+    }
+    
+    .history-item {
+        border-left: 3px solid transparent;
+        padding: 10px 15px;
+        margin: 5px 0;
+        border-radius: 0 8px 8px 0;
+        transition: all 0.2s ease;
+    }
+    
+    .history-item.user {
+        background-color: rgba(0, 123, 255, 0.1);
+        border-left-color: #007bff;
+    }
+    
+    .history-item.assistant {
+        background-color: rgba(108, 117, 125, 0.1);
+        border-left-color: #6c757d;
+    }
+    
+    .history-content {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>
+                <i class="fas fa-cog text-primary me-2"></i>
+                Configuration & Management
+            </h2>
+            <p class="text-muted">Manage roles, view conversation history, and configure chatbot settings</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Roles & Configuration -->
+        <div class="col-lg-8">
+            <!-- Current Role Info -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-circle me-2"></i>
+                        Current Role Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="config-section">
+                                <h6><strong>Active Role:</strong></h6>
+                                <span class="badge bg-primary fs-6 mb-3" id="current-role-display">{{ role_info.current_role_description or role_info.current_role }}</span>
+                                
+                                <h6><strong>Configuration:</strong></h6>
+                                <ul class="list-unstyled mb-0">
+                                    <li><strong>Model:</strong> {{ config.model_name }}</li>
+                                    <li><strong>Temperature:</strong> {{ config.temperature }}</li>
+                                    <li><strong>Max Tokens:</strong> {{ config.max_tokens }}</li>
+                                    <li><strong>Assistant Name:</strong> {{ config.assistant_name }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><strong>System Prompt Preview:</strong></h6>
+                            <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                                <small class="text-muted">{{ role_info.system_prompt[:300] }}{% if role_info.system_prompt|length > 300 %}...{% endif %}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available Personalities -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-mask me-2"></i>
+                        Personality Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><strong>Current Personality:</strong></h6>
+                            <span class="badge bg-info fs-6 mb-3" id="current-personality-display">{{ role_info.current_personality_name or 'Default' }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><strong>Quick Personality Switch:</strong></h6>
+                            <div class="input-group">
+                                <select class="form-select" id="personality-selector" onchange="showPersonalityPreview()">
+                                    <option value="">Select a personality...</option>
+                                    {% for pid, pname in personalities.items() %}
+                                    <option value="{{ pid }}" {% if pid == role_info.current_personality_id %}selected{% endif %}>{{ pname }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-success" type="button" id="apply-personality-btn" onclick="applyPersonalityToCurrentRole()" disabled>
+                                    <i class="fas fa-check me-1"></i>Apply
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3" id="personality-preview" style="display: none;">
+                        <h6><strong>Personality Preview:</strong></h6>
+                        <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                            <small class="text-muted" id="personality-preview-text">Select a personality to see preview</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available Roles -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Role & Personality Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <h6><strong>Custom Role-Personality Pairing:</strong></h6>
+                            <p class="small text-muted">Mix and match any role with any personality for unique experiences</p>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-success btn-sm" onclick="showCustomPairingModal()" title="Create custom role-personality pairing">
+                                <i class="fas fa-plus me-1"></i>
+                                Custom Pairing
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row" id="roles-container">
+                        {% for role in roles %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card role-card h-100 {% if role.is_current %}active{% endif %}" 
+                                 data-role="{{ role.name }}" 
+                                 onclick="switchRole('{{ role.name }}')">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-robot text-primary me-2"></i>
+                                        <h6 class="card-title mb-0">{{ role.description }}</h6>
+                                        {% if role.is_current %}
+                                        <i class="fas fa-check-circle text-success ms-auto"></i>
+                                        {% endif %}
+                                    </div>
+                                    <p class="card-text small text-muted">
+                                        Role: {{ role.name }}
+                                    </p>
+                                    <p class="card-text small text-info">
+                                        Personality: {{ role.personality_name or 'Default' }}
+                                    </p>
+                                    {% if role.is_current %}
+                                    <span class="badge bg-success small">Current</span>
+                                    {% else %}
+                                    <button class="btn btn-outline-primary btn-sm">
+                                        Switch to this role
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - History & Actions -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightning-bolt me-2"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" onclick="location.href='{{ url_for('chat_page') }}'">
+                            <i class="fas fa-comments me-2"></i>
+                            Go to Chat
+                        </button>
+                        <button type="button" class="btn btn-warning" id="clear-history-btn">
+                            <i class="fas fa-trash me-2"></i>
+                            Clear History
+                        </button>
+                        <button type="button" class="btn btn-info" id="refresh-config-btn">
+                            <i class="fas fa-sync me-2"></i>
+                            Refresh Config
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversation Statistics -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Conversation Stats
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-1" id="message-count">{{ history_count }}</h4>
+                                <small class="text-muted">Messages</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success mb-1">{{ config.max_history_length }}</h4>
+                            <small class="text-muted">Max History</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversation History -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Recent Messages
+                        </h6>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh-history-btn">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="history-content" id="history-container">
+                        {% if history %}
+                            {% for message in history[-10:] %}
+                            <div class="history-item {{ message.role }}">
+                                <div class="d-flex align-items-center mb-1">
+                                    <i class="fas fa-{{ 'user' if message.role == 'user' else 'robot' }} me-2"></i>
+                                    <small class="text-muted">{{ 'You' if message.role == 'user' else config.assistant_name }}</small>
+                                </div>
+                                <div class="small">
+                                    {{ message.content[:100] }}{% if message.content|length > 100 %}...{% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-comments fa-2x mb-2"></i>
+                            <p>No conversation history yet</p>
+                            <p class="small">Start chatting to see messages here</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Pairing Modal -->
+<div class="modal fade" id="customPairingModal" tabindex="-1" aria-labelledby="customPairingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customPairingModalLabel">
+                    <i class="fas fa-magic me-2"></i>
+                    Create Custom Role-Personality Pairing
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="customPairingForm">
+                    <div class="mb-3">
+                        <label for="roleSelect" class="form-label">Select Role:</label>
+                        <select class="form-select" id="roleSelect" required>
+                            <option value="">Choose a role...</option>
+                            {% for role in roles %}
+                            <option value="{{ role.name }}">{{ role.description }} ({{ role.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="personalitySelect" class="form-label">Select Personality:</label>
+                        <select class="form-select" id="personalitySelect" required>
+                            <option value="">Choose a personality...</option>
+                            {% for pid, pname in personalities.items() %}
+                            <option value="{{ pid }}">{{ pname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="pairingPreview" style="display: none;">
+                        <label class="form-label">Preview:</label>
+                        <div class="border rounded p-3 bg-light">
+                            <div id="pairingPreviewText" class="small text-muted">Select both role and personality to see preview</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyCustomPairing()">
+                    <i class="fas fa-magic me-1"></i>
+                    Apply Pairing
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Personality data for JavaScript usage
+const personalityData = {{ personalities_data | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    const refreshConfigBtn = document.getElementById('refresh-config-btn');
+    const refreshHistoryBtn = document.getElementById('refresh-history-btn');
+    const currentRoleDisplay = document.getElementById('current-role-display');
+    
+    // Setup custom pairing form listeners
+    const roleSelect = document.getElementById('roleSelect');
+    const personalitySelect = document.getElementById('personalitySelect');
+    
+    if (roleSelect && personalitySelect) {
+        roleSelect.addEventListener('change', updatePairingPreview);
+        personalitySelect.addEventListener('change', updatePairingPreview);
+    }
+
+    // Clear history
+    clearHistoryBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear the conversation history?')) {
+            fetch('/api/history', {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    refreshHistory();
+                    showToast('Conversation history cleared successfully', 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to clear history');
+                }
+            })
+            .catch(error => {
+                console.error('Error clearing history:', error);
+                showToast('Error clearing history: ' + error.message, 'error');
+            });
+        }
+    });
+
+    // Refresh config
+    refreshConfigBtn.addEventListener('click', function() {
+        location.reload();
+    });
+
+    // Refresh history
+    refreshHistoryBtn.addEventListener('click', function() {
+        refreshHistory();
+    });
+
+    function refreshHistory() {
+        fetch('/api/history')
+        .then(response => response.json())
+        .then(data => {
+            updateHistoryDisplay(data.history);
+            document.getElementById('message-count').textContent = data.count;
+        })
+        .catch(error => {
+            console.error('Error refreshing history:', error);
+            showToast('Error refreshing history: ' + error.message, 'error');
+        });
+    }
+
+    function updateHistoryDisplay(history) {
+        const container = document.getElementById('history-container');
+        
+        if (history.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-comments fa-2x mb-2"></i>
+                    <p>No conversation history yet</p>
+                    <p class="small">Start chatting to see messages here</p>
+                </div>
+            `;
+            return;
+        }
+
+        const recentHistory = history.slice(-10);
+        container.innerHTML = recentHistory.map(message => `
+            <div class="history-item ${message.role}">
+                <div class="d-flex align-items-center mb-1">
+                    <i class="fas fa-${message.role === 'user' ? 'user' : 'robot'} me-2"></i>
+                    <small class="text-muted">${message.role === 'user' ? 'You' : '{{ config.assistant_name }}'}</small>
+                </div>
+                <div class="small">
+                    ${message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}
+                </div>
+            </div>
+        `).join('');
+    }
+});
+
+function switchRole(roleName) {
+    if (confirm(`Switch to role: ${roleName}?\n\nThis will clear your current conversation history.`)) {
+        fetch(`/api/roles/${roleName}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Refresh the page to update the UI
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                throw new Error(data.message || 'Failed to switch role');
+            }
+        })
+        .catch(error => {
+            console.error('Error switching role:', error);
+            showToast('Error switching role: ' + error.message, 'error');
+        });
+    }
+}
+
+function showPersonalityPreview() {
+    const selector = document.getElementById('personality-selector');
+    const preview = document.getElementById('personality-preview');
+    const previewText = document.getElementById('personality-preview-text');
+    const applyBtn = document.getElementById('apply-personality-btn');
+    
+    if (selector.value && personalityData[selector.value]) {
+        const personality = personalityData[selector.value];
+        previewText.innerHTML = `
+            <strong>${personality.name}</strong><br><br>
+            <strong>System Prompt:</strong><br>
+            ${personality.system_prompt}<br><br>
+            <strong>Behavior Guide:</strong><br>
+            ${personality.behavior_guide.replace(/\n/g, '<br>')}<br><br>
+            <strong>Response Style:</strong><br>
+            ${personality.response_style.replace(/\n/g, '<br>')}
+        `;
+        preview.style.display = 'block';
+        applyBtn.disabled = false;
+    } else {
+        preview.style.display = 'none';
+        applyBtn.disabled = true;
+    }
+}
+
+function applyPersonalityToCurrentRole() {
+    const selector = document.getElementById('personality-selector');
+    const personalityId = selector.value;
+    const currentRole = '{{ role_info.current_role }}';
+    
+    if (!personalityId) {
+        showToast('Please select a personality first', 'error');
+        return;
+    }
+    
+    const personalityName = selector.options[selector.selectedIndex].text;
+    
+    if (confirm(`Apply ${personalityName} personality to current role?\n\nThis will clear your conversation history.`)) {
+        fetch('/api/custom-pairing', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                role: '{{ role_info.current_role }}',
+                personality_id: personalityId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Update current personality display
+                document.getElementById('current-personality-display').textContent = personalityName;
+                // Refresh the page to update the UI
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                throw new Error(data.message || 'Failed to apply personality');
+            }
+        })
+        .catch(error => {
+            console.error('Error applying personality:', error);
+            showToast('Error applying personality: ' + error.message, 'error');
+        });
+    }
+}
+
+function showCustomPairingModal() {
+    const modal = new bootstrap.Modal(document.getElementById('customPairingModal'));
+    modal.show();
+}
+
+function updatePairingPreview() {
+    const roleSelect = document.getElementById('roleSelect');
+    const personalitySelect = document.getElementById('personalitySelect');
+    const preview = document.getElementById('pairingPreview');
+    const previewText = document.getElementById('pairingPreviewText');
+    
+    if (roleSelect.value && personalitySelect.value) {
+        const roleName = roleSelect.options[roleSelect.selectedIndex].text;
+        const personalityName = personalitySelect.options[personalitySelect.selectedIndex].text;
+        
+        previewText.innerHTML = `
+            <strong>Role:</strong> ${roleName}<br>
+            <strong>Personality:</strong> ${personalityName}<br>
+            <small class="text-muted">This pairing will combine the responsibilities of the selected role with the personality traits of the selected personality.</small>
+        `;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+function applyCustomPairing() {
+    const roleSelect = document.getElementById('roleSelect');
+    const personalitySelect = document.getElementById('personalitySelect');
+    
+    if (!roleSelect.value || !personalitySelect.value) {
+        showToast('Please select both a role and a personality', 'error');
+        return;
+    }
+    
+    const data = {
+        role: roleSelect.value,
+        personality_id: personalitySelect.value
+    };
+    
+    if (confirm(`Apply custom pairing?\n\nRole: ${roleSelect.options[roleSelect.selectedIndex].text}\nPersonality: ${personalitySelect.options[personalitySelect.selectedIndex].text}\n\nThis will clear your current conversation history.`)) {
+        fetch('/api/custom-pairing', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('customPairingModal')).hide();
+                // Refresh the page to update the UI
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                throw new Error(data.message || 'Failed to apply custom pairing');
+            }
+        })
+        .catch(error => {
+            console.error('Error applying custom pairing:', error);
+            showToast('Error applying custom pairing: ' + error.message, 'error');
+        });
+    }
+}
+</script>
+{% endblock %}
