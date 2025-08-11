@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}ChatBot - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Hero Section -->
+            <div class="text-center mb-5">
+                <h1 class="display-4 mb-4">
+                    <i class="fas fa-robot text-primary me-3"></i>
+                    ChatBot
+                </h1>
+                <p class="lead text-muted mb-4">
+                    Intelligent conversational AI powered by LlamaIndex and AI models
+                </p>
+            </div>
+
+            <!-- Feature Cards -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <div class="feature-icon bg-primary text-white rounded-circle mx-auto mb-3">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <h5 class="card-title">Interactive Chat</h5>
+                            <p class="card-text text-muted">
+                                Engage in natural conversations with AI assistant featuring multiple personality roles
+                            </p>
+                            <a href="{{ url_for('chat_page') }}" class="btn btn-primary">
+                                Start Chatting
+                                <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <div class="feature-icon bg-success text-white rounded-circle mx-auto mb-3">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <h5 class="card-title">Configuration</h5>
+                            <p class="card-text text-muted">
+                                Customize roles, manage conversation history, and configure chatbot settings
+                            </p>
+                            <a href="{{ url_for('config_page') }}" class="btn btn-success">
+                                Configure
+                                <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features List -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-star text-warning me-2"></i>
+                        Key Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Multiple AI models support
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Real-time streaming responses
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Role-based personalities
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Conversation history management
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Flexible configuration
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    Web-based interface
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

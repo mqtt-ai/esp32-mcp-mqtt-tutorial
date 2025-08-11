@@ -1,0 +1,147 @@
+"""
+Configuration management module - simplified version
+Centralized management of all chatbot configuration parameters
+"""
+
+import os
+from typing import Optional
+from dataclasses import dataclass
+from dotenv import load_dotenv
+
+
+@dataclass
+class ChatConfig:
+    """Chatbot configuration class"""
+
+    # API-related configuration
+    api_key: str
+    api_base: Optional[str] = None
+    model_name: str = "qwen-turbo"
+
+    # Model parameters
+    temperature: float = 0.7
+    max_tokens: int = 2048
+
+    # Conversation management
+    max_history_length: int = 20
+
+    # System configuration
+    assistant_name: str = "AI Assistant"
+    enable_debug: bool = False
+
+    def __post_init__(self):
+        """Post-initialization validation"""
+        self._validate_config()
+
+    def _validate_config(self):
+        """Validate configuration parameters - simplified version"""
+        if not self.api_key:
+            raise ValueError("API key cannot be empty")
+
+        if not self.api_key.startswith(("sk-", "tk-")):
+            raise ValueError(
+                "API key format is incorrect, should start with 'sk-' or 'tk-'"
+            )
+
+        # Basic range checks
+        if not 0.0 <= self.temperature <= 2.0:
+            raise ValueError(
+                f"Temperature should be between 0.0-2.0, current value: {self.temperature}"
+            )
+
+        if not 1 <= self.max_tokens <= 32000:
+            raise ValueError(
+                f"Max tokens should be between 1-32000, current value: {self.max_tokens}"
+            )
+
+        if not self.assistant_name.strip():
+            raise ValueError("Assistant name cannot be empty")
+
+    @classmethod
+    def from_env(cls, env_file: str = ".env") -> "ChatConfig":
+        """Load configuration from environment variables"""
+        # Load environment variables
+        load_dotenv(env_file)
+
+        return cls(
+            api_key=cls._get_env_required("DASHSCOPE_API_KEY"),
+            api_base=os.getenv("DASHSCOPE_API_BASE"),
+            model_name=os.getenv("MODEL_NAME", "qwen-turbo"),
+            temperature=cls._get_env_float("TEMPERATURE", 0.7),
+            max_tokens=cls._get_env_int("MAX_TOKENS", 2048),
+            max_history_length=cls._get_env_int("MAX_HISTORY_LENGTH", 20),
+            assistant_name=os.getenv("ASSISTANT_NAME", "AI Assistant"),
+            enable_debug=cls._get_env_bool("DEBUG", False),
+        )
+
+    @staticmethod
+    def _get_env_required(key: str) -> str:
+        """Get required environment variable"""
+        value = os.getenv(key)
+        if not value:
+            raise ValueError(f"Missing required environment variable: {key}")
+        return value
+
+    @staticmethod
+    def _get_env_float(key: str, default: float) -> float:
+        """Get float environment variable"""
+        value = os.getenv(key)
+        if not value:
+            return default
+        try:
+            return float(value)
+        except ValueError:
+            print(
+                f"⚠️ Environment variable {key} is not a valid number, using default: {default}"
+            )
+            return default
+
+    @staticmethod
+    def _get_env_int(key: str, default: int) -> int:
+        """Get integer environment variable"""
+        value = os.getenv(key)
+        if not value:
+            return default
+        try:
+            return int(value)
+        except ValueError:
+            print(
+                f"⚠️ Environment variable {key} is not a valid integer, using default: {default}"
+            )
+            return default
+
+    @staticmethod
+    def _get_env_bool(key: str, default: bool) -> bool:
+        """Get boolean environment variable"""
+        value = os.getenv(key)
+        if not value:
+            return default
+        return value.lower() in ("true", "1", "yes", "on")
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary format"""
+        return {
+            "api_key": "***" + self.api_key[-4:]
+            if len(self.api_key) > 4
+            else "***",  # Hide API key
+            "api_base": self.api_base,
+            "model_name": self.model_name,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "max_history_length": self.max_history_length,
+            "assistant_name": self.assistant_name,
+            "enable_debug": self.enable_debug,
+        }
+
+    def __str__(self) -> str:
+        """String representation"""
+        config_info = []
+        config_info.append(f"Model: {self.model_name}")
+        config_info.append(f"Temperature: {self.temperature}")
+        config_info.append(f"Max Tokens: {self.max_tokens}")
+        config_info.append(f"History Length: {self.max_history_length}")
+        config_info.append(f"Assistant Name: {self.assistant_name}")
+        if self.enable_debug:
+            config_info.append("Debug Mode: Enabled")
+
+        return " | ".join(config_info)
