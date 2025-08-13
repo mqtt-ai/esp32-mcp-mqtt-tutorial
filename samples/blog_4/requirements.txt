@@ -1,0 +1,26 @@
+# Core web framework
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+
+# HTTP client for EMQX API
+httpx==0.28.1
+
+# AI model integration
+openai==1.99.6
+
+# Audio processing
+numpy==2.3.2
+lameenc==1.8.1
+
+# Data validation (FastAPI dependency)
+pydantic==2.11.7
+
+# MQTT client (if needed for direct MQTT operations)
+paho-mqtt==2.1.0
+
+# Environment management
+python-dotenv==1.0.1
+
+# Development dependencies (optional)
+pytest==8.3.3
+pytest-asyncio==0.24.0
