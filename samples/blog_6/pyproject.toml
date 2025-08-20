@@ -1,0 +1,20 @@
+[project]
+name = "image-ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.116.1",
+    "llama-index-llms-siliconflow>=0.4.0",
+    "mcp",
+    "openai>=1.99.9",
+    "requests>=2.32.4",
+]
+
+[[tool.uv.index]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
+
+[tool.uv.sources]
+mcp = { git = "https://github.com/emqx/mcp-python-sdk.git" }

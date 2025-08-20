@@ -1,0 +1,27 @@
+dependencies:
+  espressif/esp_codec_dev:
+    component_hash: 420a8a931f8bdfc74ae89c4d2ce634823d10e1865b1e9bdb8428bfe4a1060def
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.3.6
+  idf:
+    source:
+      type: idf
+    version: 6.0.0
+  mcp-over-mqtt:
+    dependencies: []
+    source:
+      path: /Users/fz/Program/esp/esp32-demo/components/mcp-over-mqtt
+      type: local
+    version: 0.0.1
+direct_dependencies:
+- espressif/esp_codec_dev
+- mcp-over-mqtt
+manifest_hash: cc18d3909366cf81ace2b3f4a285b98e1128634f2f12bfe5bd18f7faabfddaa4
+target: esp32s3
+version: 2.0.0
