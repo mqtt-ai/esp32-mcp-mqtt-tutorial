@@ -11,6 +11,7 @@
 #include "mcp_server.h"
 #include "radio.h"
 #include "wifi.h"
+#include "send_image.h"
 
 const char *set_volume(int n_args, property_t *args)
 {
@@ -38,55 +39,46 @@ const char *set_volume(int n_args, property_t *args)
 
 const char *explain_photo(int n_args, property_t *args)
 {
-    // if (n_args < 1) {
-    //     return "At least one argument is required";
-    // }
-
-    // if (args[0].type != PROPERTY_INTEGER) {
-    //     return "Volume argument must be an integer";
-    // }
-
-    // int volume = (int) args[0].value.integer_value;
-    // if (volume < 0 || volume > 100) {
-    //     return "Volume must be between 0 and 100";
-    // }
-
-    // esp_err_t ret = max98357_set_volume_percent((uint8_t) volume);
-    // if (ret != ESP_OK) {
-    //     return "Failed to set volume";
-    // }
-
-    // ESP_LOGI("mcp server", "Setting volume to: %d%%", volume);
-    // return "Volume set successfully";
-
-/*
-    有两个参数，第一个参数是图片解析地址，例如 "http://120.124.34.38:8001/explain_photo"
-    第二个参数是用户问题, 例如 “我今天的头发看起来怎么样”
-
-    需要从本地加载一张图片，然后请求图片服务
-
-    curl -X POST "http://120.124.34.38:8001/explain_photo"
-    --data 
-     {
-        "role": "user",
-        "content": [
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-            },
-            {"type": "text", "text": "图中描绘的是什么景象？"},
-        ],
+    if (n_args < 2) {
+        return "At least two argument is required";
     }
 
-    你会得到一个 json 回应, 返回即可
-
-    {
-        "response": "xxxxxxxxxxxxxxxxxxxx"
+    if (args[0].type != PROPERTY_STRING) {
+        return "Address argument must be an integer";
+    }
+    if (args[1].type != PROPERTY_STRING) {
+        return "Question argument must be an integer";
     }
 
-    return xxxxxxxxxxxxxxxx
+    char *address = args[0].value.string_value;
+    if (address == NULL || address[0] == '\0') {
+        return "Address must not be empty";
+    }
 
-*/    
+    char *question = args[1].value.string_value;
+    if (question == NULL || question[0] == '\0') {
+        return "Question must not be empty";
+    }
+
+    cJSON *response_json = send_image(address, question);
+    if (response_json == NULL) {
+        return "Failed to get response from image service";
+    }
+
+    cJSON *response_field = cJSON_GetObjectItem(response_json, "response");
+    if (!cJSON_IsString(response_field) || response_field->valuestring == NULL) {
+        cJSON_Delete(response_json);
+        return "Invalid response from image service";
+    }
+
+    // Copy the response string to a static buffer to return
+    static char response_buffer[512];
+    strncpy(response_buffer, response_field->valuestring, sizeof(response_buffer) - 1);
+    response_buffer[sizeof(response_buffer) - 1] = '\0';
+
+    cJSON_Delete(response_json);
+    return response_buffer;
+   
 }
 
 void app_main(void)
